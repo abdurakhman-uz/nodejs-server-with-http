@@ -1,90 +1,188 @@
 const http = require('http');
+const { PassHash, PassCheck } = require('./utils/pass.js');
 const {read, write} = require('./utils/read.js');
 const { uuid } = require('./utils/uuid.js')
 
+// console.log(PassHash("12345678"));
+// console.log(PassCheck("12345678", "ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f"));
+
 const server = http.createServer();
 const PORT = process.env.PORT || 3001;
+const options = {'content-type': "application/json", 'Access-Control-Allow-Origin': "*", 'Access-Control-Allow-Methods':'GET, POST, PUT, DELETE'};
 
 
 server.on('request', (req, res) => {
-    if (req.method === 'GET' && req.url === '/cars') {
+    res.writeHead(200, options)
+    const url = req.url
+    const method = req.method
+    id = url.split('/')[2];
+    console.log({
+        "url": url,
+        "method": method
+    });
 
-        let cars = read("cars")
+    if (url === '/products') {
+        if (method === 'GET')
+        {
+            let products = read("products")
 
-        res.writeHead(200, {'content-type': "application/json", 'Access-Control-Allow-Origin': "*"})
-        res.end(JSON.stringify(cars))
+            res.writeHead(200, options)
+            res.end(JSON.stringify(products))
+        }
+
+        if (method === 'POST')
+        {
+            req.on("data", chunk => {
+                let data = JSON.parse(chunk);
+                
+                let products = read("products")
+    
+                products.push({
+                    id: uuid(),
+                    ...data
+                })
+                write("products", products)
+                res.writeHead(201, options)
+                res.end(JSON.stringify('Product Successfully added'))
+    
+            })
+        }
     }
 
-    if (req.method === 'POST' && req.url === '/create_car') {
-        req.on("data", chunk => {
-            let data = JSON.parse(chunk);
+    if (url === `/products/${id}`) {
 
-            let cars = read("cars")
-
-            cars.push({
-                id: uuid(),
-                ...data
+        if (method === 'PUT')
+        {
+            req.on("data", chunk => {
+                let newProduct = JSON.parse(chunk)
+                let { name, desc, price } = newProduct
+    
+               let products =  read("products")
+    
+               let foundedProduct = products.find((p) => p.id === id)
+    
+               if(!foundedProduct){
+                res.writeHead(404, options)
+                return res.end(JSON.stringify({
+                    msg: 'Product not found!'
+                }))
+               }
+    
+    
+               products.forEach((product, idx) => {
+                if(product.id === id){
+                    product.name = name ? name : product.title
+                    product.desc = desc ? desc : product.desc
+                    product.price = price ? price : product.price
+                }
+               })
+    
+               write("products", products)
+    
+               res.writeHead(200, options)
+               res.end(JSON.stringify({
+                msg: "Product Updated!"
+               }))
+    
             })
-            write("cars", cars)
-            res.writeHead(201, {'content-type': "application/json", 'Access-Control-Allow-Origin': "*"})
-            res.end(JSON.stringify('Car Successfully added'))
+        }
 
+        if (method === 'POST')
+        {
+            console.log(id = url.split('/')[2]);
+            let products =  read("products")
+
+           let foundedProduct = products.find((p) => p.id === id)
+
+           if(!foundedProduct){
+            res.writeHead(404, options)
+            return res.end(JSON.stringify({
+                msg: 'Product not found!'
+            }))
+           }
+
+           products.forEach((product, idx) => {
+            if(product.id === id){
+                products.splice(idx, 1)
+            }
+           })
+
+           write("products", products)
+
+           res.writeHead(200, options)
+           res.end(JSON.stringify({
+            msg: "Product Deleted!"
+           }))
+
+        }
+    }
+
+    if(url === '/auth/register'){
+        req.on("data", chunk => {
+            let { email, username, password, gender } = JSON.parse(chunk)
+
+           let psw =  PassHash(password);
+
+           let users = read("users")
+
+           let foundedUser = users.find(user => user.email == email)
+
+           if(foundedUser){
+            res.writeHead(200, options)
+            return  res.end(JSON.stringify({
+                msg: 'Email already exists!!!'
+            }))
+           }
+           users.push({
+            id: uuid(),
+            email,
+            username,
+            gender,
+            password: psw,
+            })
+
+            write("users", users)
+
+            res.writeHead(201, options)
+            res.end(JSON.stringify({
+                msg: 'User registrated!'
+            }))
         })
     }
 
-
-
-    if (req.method === 'GET' && req.url === '/fruits') {
-
-        let fruits = read("fruits")
-
-        res.writeHead(200, {'content-type': "application/json", 'Access-Control-Allow-Origin': "*"})
-        res.end(JSON.stringify(fruits))
-    }
-
-    if (req.method === 'POST' && req.url === '/create_fruit') {
+    if(url === '/auth/login'){
         req.on("data", chunk => {
-            let data = JSON.parse(chunk);
+            let { email, password } = JSON.parse(chunk)
 
-            let fruits = read("fruits")
+            let foundedUser = read("users").find(user => user.email === email)
+            if(foundedUser){
+                let psw = PassCheck(password, foundedUser.password)
+                if(!psw){
+                    res.writeHead(200, options)
+                    return res.end(JSON.stringify({
+                        msg: 'Password error!'
+                    }))
 
-            fruits.push({
-                id: uuid(),
-                ...data
-            })
-            write("fruits", fruits)
-            res.writeHead(201, {'content-type': "application/json", 'Access-Control-Allow-Origin': "*"})
-            res.end(JSON.stringify('Fruit Successfully added'))
+                }
+
+                let hashUser = PassHash(foundedUser)
+                res.writeHead(200, options)
+                return res.end(JSON.stringify({
+                    msg: 'Success!',
+                    token: hashUser
+                }))
+            }
+
+            res.writeHead(404, options)
+            res.end(JSON.stringify({
+                msg: 'User not found!'
+            }))
 
         })
+
     }
 
-
-
-    if (req.method === 'GET' && req.url === '/animals') {
-
-        let animals = read("animals")
-
-        res.writeHead(200, {'content-type': "application/json", 'Access-Control-Allow-Origin': "*"})
-        res.end(JSON.stringify(animals))
-    }
-
-    if (req.method === 'POST' && req.url === '/create_animal') {
-        req.on("data", chunk => {
-            let data = JSON.parse(chunk);
-
-            let animals = read("animals")
-
-            animals.push({
-                id: uuid(),
-                ...data
-            })
-            write("animals", animals)
-            res.writeHead(201, {'content-type': "application/json", 'Access-Control-Allow-Origin': "*"})
-            res.end(JSON.stringify('Animal Successfully added'))
-
-        })
-    }
+    
 })
 
 server.listen(PORT, () => {
