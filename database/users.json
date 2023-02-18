@@ -1,1 +1,16 @@
-[]
+[
+    {
+        "id": "eeb2950006983fadade23a8d5af2bec3",
+        "email": "admin@email.com",
+        "username": "admin",
+        "gender": "male",
+        "password": "c546365f41f7d858970b736c891881bc63a90247f8fb2dc1035170cca3b038a3"
+    },
+    {
+        "id": "b89a2ccf8698e673178e79e87f2a5766",
+        "email": "a@gmail.com",
+        "username": "abduazimov",
+        "gender": "male",
+        "password": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"
+    }
+]

@@ -19,4 +19,13 @@ function PassCheck(password, hash) {
     
 }
 
-module.exports = { PassHash, PassCheck }
+function hashUser(userInfo) {
+    if ( userInfo ) {
+        return crypto.createHash('sha256').update(userInfo).digest('hex')
+    }
+    
+    return "user info faild"
+    
+}
+
+module.exports = { PassHash, PassCheck, hashUser }

@@ -1,18 +1,19 @@
 const http = require('http');
-const { PassHash, PassCheck } = require('./utils/pass.js');
+const { PassHash, PassCheck, hashUser } = require('./utils/pass.js');
 const {read, write} = require('./utils/read.js');
 const { uuid } = require('./utils/uuid.js')
 
-// console.log(PassHash("12345678"));
-// console.log(PassCheck("12345678", "ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f"));
-
 const server = http.createServer();
 const PORT = process.env.PORT || 3001;
-const options = {'content-type': "application/json", 'Access-Control-Allow-Origin': "*", 'Access-Control-Allow-Methods':'GET, POST, PUT, DELETE'};
-
+const headers = {
+    'Content-Type': "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "OPTIONS, GET, POST, PUT, DELETE",
+    "Access-Control-Max-Age": 2592000, // 30 days
+    /** add other headers as per requirement */
+  };
 
 server.on('request', (req, res) => {
-    res.writeHead(200, options)
     const url = req.url
     const method = req.method
     id = url.split('/')[2];
@@ -21,13 +22,19 @@ server.on('request', (req, res) => {
         "method": method
     });
 
+    if (method === 'OPTIONS') {
+        res.writeHead(200, headers);
+        res.end();
+        return;
+    }
+
     if (url === '/products') {
         if (method === 'GET')
         {
             let products = read("products")
 
-            res.writeHead(200, options)
-            res.end(JSON.stringify(products))
+            res.writeHead(200, headers)
+            res.end(JSON.stringify({msg: products}))
         }
 
         if (method === 'POST')
@@ -42,8 +49,8 @@ server.on('request', (req, res) => {
                     ...data
                 })
                 write("products", products)
-                res.writeHead(201, options)
-                res.end(JSON.stringify('Product Successfully added'))
+                res.writeHead(201, headers)
+                res.end(JSON.stringify({msg: "Product Successfully added"}))
     
             })
         }
@@ -62,7 +69,7 @@ server.on('request', (req, res) => {
                let foundedProduct = products.find((p) => p.id === id)
     
                if(!foundedProduct){
-                res.writeHead(404, options)
+                res.writeHead(404, headers)
                 return res.end(JSON.stringify({
                     msg: 'Product not found!'
                 }))
@@ -79,7 +86,7 @@ server.on('request', (req, res) => {
     
                write("products", products)
     
-               res.writeHead(200, options)
+               res.writeHead(200, headers)
                res.end(JSON.stringify({
                 msg: "Product Updated!"
                }))
@@ -87,7 +94,7 @@ server.on('request', (req, res) => {
             })
         }
 
-        if (method === 'POST')
+        if (method === 'DELETE')
         {
             console.log(id = url.split('/')[2]);
             let products =  read("products")
@@ -95,7 +102,7 @@ server.on('request', (req, res) => {
            let foundedProduct = products.find((p) => p.id === id)
 
            if(!foundedProduct){
-            res.writeHead(404, options)
+            res.writeHead(404, headers)
             return res.end(JSON.stringify({
                 msg: 'Product not found!'
             }))
@@ -109,7 +116,7 @@ server.on('request', (req, res) => {
 
            write("products", products)
 
-           res.writeHead(200, options)
+           res.writeHead(200, headers)
            res.end(JSON.stringify({
             msg: "Product Deleted!"
            }))
@@ -128,7 +135,7 @@ server.on('request', (req, res) => {
            let foundedUser = users.find(user => user.email == email)
 
            if(foundedUser){
-            res.writeHead(200, options)
+            res.writeHead(200, headers)
             return  res.end(JSON.stringify({
                 msg: 'Email already exists!!!'
             }))
@@ -143,7 +150,7 @@ server.on('request', (req, res) => {
 
             write("users", users)
 
-            res.writeHead(201, options)
+            res.writeHead(201, headers)
             res.end(JSON.stringify({
                 msg: 'User registrated!'
             }))
@@ -157,19 +164,19 @@ server.on('request', (req, res) => {
             let foundedUser = read("users").find(user => user.email === email)
             if(foundedUser){
                 let psw = PassCheck(password, foundedUser.password)
-                if(!psw){
-                    res.writeHead(200, options)
+                if(psw){
+                    // let userToken = hashUser(`${foundedUser}`)
+                    let userToken = foundedUser.password
+                    res.writeHead(200, headers)
                     return res.end(JSON.stringify({
-                        msg: 'Password error!'
+                        msg: 'Success!',
+                        token: userToken
                     }))
-
                 }
-
-                let hashUser = PassHash(foundedUser)
-                res.writeHead(200, options)
+                
+                res.writeHead(200, headers)
                 return res.end(JSON.stringify({
-                    msg: 'Success!',
-                    token: hashUser
+                    msg: 'Password error!'
                 }))
             }
 
@@ -182,7 +189,27 @@ server.on('request', (req, res) => {
 
     }
 
-    
+    if(url === '/auth/check'){
+        req.on("data", chunk => {
+            let { token } = JSON.parse(chunk)
+
+            let foundedUser = read("users").find(user => user.password === token)
+            if(foundedUser){
+                // // let userToken = hashUser(`${foundedUser}`)
+                let userToken = foundedUser.password
+                res.writeHead(200, headers)
+                return res.end(JSON.stringify({
+                    msg: true,
+                    token: userToken
+                }))
+            }
+          
+            res.writeHead(200, headers)
+            res.end(JSON.stringify({
+                msg: false
+            }))
+        })
+    }
 })
 
 server.listen(PORT, () => {
