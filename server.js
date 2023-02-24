@@ -1,7 +1,7 @@
 const http = require('http');
 const Express = require('./lib/express')
 const {read, write} = require('./utils/read.js');
-const {uuid} = require('./utils/uuid.js')
+const {uuid, encode} = require('./utils/uuid.js')
 const {PassHash, PassCheck, hashUser} = require('./utils/pass.js');
 
 const server = http.createServer();
@@ -18,16 +18,22 @@ const headers = {
 server.on('request', (req, res) => {
     const app = new Express(req, res)
     id = req.url.split('/')[2];
-    // const url = req.url
+    const url = req.url
+    const method = req.method
     // id = url.split('/')[2];
-    // const method = req.method
-    // console.log({"url": url, "method": method});
+    
+    console.log({"url": url, "method": method});
 
+    if (method === 'OPTIONS') {
+        res.writeHead(200, headers);
+        res.end();
+        return;
+    }
 
-    app.options('*', (req, res) => {
-        res.json()
-        return
-    })
+    // app.options('*', async (req, res) => {
+    //     res.json()
+    //     return
+    // })
 
     app.get('/products', (req, res) => {
         let products = read('products')
@@ -39,7 +45,7 @@ server.on('request', (req, res) => {
         let data = await(req.body)
         products.push({
             id: uuid(),
-            ... data
+            ...data
         })
         write("products", products)
         res.json({msg: "Product Successfully added"})
@@ -71,7 +77,7 @@ server.on('request', (req, res) => {
         let products = read("products")
         let foundedProduct = products.find((p) => p.id === id)
 
-        if (! foundedProduct) {
+        if (!foundedProduct) {
             return res.json({msg: 'Product not found!'})
         }
 
@@ -90,8 +96,10 @@ server.on('request', (req, res) => {
         let foundedUser = read("users").find(user => user.email === email)
         if (foundedUser) {
             let psw = PassCheck(password, foundedUser.password)
-            if (psw) { // let userToken = hashUser(`${foundedUser}`)
-                let userToken = foundedUser.password
+            if (psw) { 
+                // let userToken = hashUser(`${foundedUser}`)
+                // let userToken = foundedUser.password
+                let userToken = foundedUser.id
                 return res.json({msg: 'Success!', token: userToken})
             }
 
